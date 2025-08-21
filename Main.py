@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 import logging
 import os
 import random
-import requests
-import json
 import asyncio
+import utils.text_to_audio_handling as bot_voice
+
+VOICE="Miguel"
 
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
@@ -22,21 +23,6 @@ async def channel_warner(ctx):
         file = discord.File(fp="C:\\Users\\Main\\Desktop\\Serious\\Automation\\Discord\\Images\\Burro.png", filename="Burro.png")
         await ctx.send(f"Utilice el canal bot para comandos {ctx.author.name}", file=file)
         return True
-#when you need a little spice in the voice chat
-async def text_to_speech(text):
-    url="https://ttsmp3.com/makemp3_new.php"
-    request = requests.post(url=url, data={"msg":text,"lang":"Miguel","source":"testing"})
-    if request.status_code==200:
-        link=json.loads(request.text)["URL"]
-        dowload_response = requests.get(link, stream=True)
-        output_file = json.loads(request.text)["MP3"]
-        if dowload_response.status_code == 200:
-            with open(output_file, 'wb') as f:
-                for chunk in dowload_response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-            print("Download complete!")
-        return os.path.abspath(output_file)
-
 
 # When we login in
 @bot.event
@@ -68,22 +54,24 @@ async def lorenzo(ctx):
     chosen = random.choice(messages)
     print(f"Message chosen: {chosen.content}")
     final_format = chosen.content.replace('\r', '....\r').replace('\n', '.....\n')
-    audio_file= await text_to_speech(f"La peripecia de ahora es....' {final_format} '....palabras muy sabias")
-
+    response_voice_instance = bot_voice.text_to_audio(file_id=chosen.id, audio_lang=VOICE)
+    print("Voice object created.")
     if ctx.author.voice:
+
         channel = ctx.author.voice.channel
+        response_voice_instance.text_to_speech_request(f"La peripecia de ahora es....' {final_format} '....palabras muy sabias")
         await channel.connect()
         voice_client = ctx.voice_client
         if voice_client and voice_client.is_connected():
             # FFmpegPCMAudio uses ffmpeg to process the file
-            source = discord.FFmpegPCMAudio(audio_file)
+            source = discord.FFmpegPCMAudio(response_voice_instance.path)
             voice_client.play(source)
             while voice_client.is_playing():
                 await asyncio.sleep(1)
         await ctx.voice_client.disconnect()
-    os.remove(audio_file)
-    await ctx.send(f"La peripecia de ahora es....' {chosen.content} '....palabras muy sabias")
 
+    await ctx.send(f"La peripecia de ahora es....' {chosen.content} '....palabras muy sabias")
+    
 '''
 @bot.command()
 async def createchannel(ctx, name: str):
